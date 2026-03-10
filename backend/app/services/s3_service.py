@@ -18,3 +18,11 @@ async def upload_file_to_s3(
         url: str = s3_client.put_object()
     except ClientError as e:
         raise Exception(f"Failed to upload file to S3: {str(e)}")
+
+
+async def delete_file_from_s3(file_name: str) -> None:
+    """Delete a file from S3"""
+    try:
+        s3_client.delete_object(Bucket=settings.S3_BUCKET_NAME, Key=file_name)
+    except ClientError as e:
+        raise Exception(f"Failed to delete file from S3: {str(e)}")
