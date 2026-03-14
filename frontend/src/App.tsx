@@ -1,38 +1,60 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useCallback, useEffect, useState } from "react";
+import LoginPage from "./LoginPage";
+import ChatExamplesPage from "./ChatExamplesPage";
+import { AUTH_TOKEN_KEY, setAuthToken } from "./apiClient";
 
-import { DatePicker } from 'antd';
+/**
+ * Shows login page when not authenticated, and chat examples page after
+ * successful login (JWT or Google). Token is read from localStorage on load
+ * and from URL on return from Google OAuth (so refresh keeps you logged in).
+ */
+const App: React.FC = () => {
+  const [isAuthenticated, setAuthenticated] = useState<boolean>(() => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (token) return true;
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get("token");
+    if (urlToken) {
+      localStorage.setItem(AUTH_TOKEN_KEY, urlToken);
+      return true;
+    }
+    return false;
+  });
 
-function App() {
-  const [count, setCount] = useState(0)
+  const restoreToken = useCallback(() => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (token) {
+      setAuthToken(token);
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get("token");
+    if (urlToken) {
+      localStorage.setItem(AUTH_TOKEN_KEY, urlToken);
+      setAuthToken(urlToken);
+      setAuthenticated(true);
+      window.history.replaceState({}, document.title, window.location.pathname || "/");
+    }
+  }, []);
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-      <p><DatePicker /></p>
-    </>
-  )
-}
+  useEffect(() => {
+    restoreToken();
+  }, [restoreToken]);
 
-export default App
+  const handleLoginSuccess = useCallback(() => {
+    setAuthenticated(true);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    setAuthToken(null);
+    setAuthenticated(false);
+  }, []);
+
+  if (isAuthenticated) {
+    return <ChatExamplesPage onLogout={handleLogout} />;
+  }
+  return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+};
+
+export default App;
